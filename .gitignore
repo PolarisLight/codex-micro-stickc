@@ -1,4 +1,8 @@
 .pio/
+.platformio-core/
+.venv/
+.venv*/
+.title-sync-venv/
 .vscode/
 __pycache__/
 *.pyc

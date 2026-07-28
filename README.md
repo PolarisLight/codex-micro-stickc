@@ -74,7 +74,7 @@ fuel gauge.
 - Data-capable USB-C cable
 - Windows or macOS with ChatGPT Desktop and Codex Micro support
 - [PlatformIO](https://platformio.org/)
-- Python 3 with `pyserial` for optional title synchronization
+- Python 3.10+ with `pyserial` for PlatformIO and optional title synchronization
 
 ## Build and flash
 
@@ -107,17 +107,42 @@ settings, restart the M5StickC, and pair again.
 ## Task-title synchronization
 
 The Codex Micro protocol supplies slot colors and effects but not task titles.
-This repository includes a local USB serial helper that reads the user's Codex
-Custom assignments and sends the six titles to the StickC:
+This repository includes a local USB serial helper that sends the six titles to
+the StickC. It follows Codex's default **Recent** task source from the local
+read-only thread database and also supports explicit **Custom** assignments.
+
+Install the current-user background service with the same command on macOS and
+Windows (administrator access is not required):
+
+```sh
+python tools/title_sync_service.py install
+python tools/title_sync_service.py status
+python tools/title_sync_service.py uninstall
+```
+
+The installer copies the helper into the current user's application-data
+directory, creates an isolated `.title-sync-venv` there, installs the pinned
+serial dependency, and registers the service with launchd on macOS or Task
+Scheduler on Windows. It automatically discovers the StickC serial port, so the
+same setup continues to work if the port name changes.
+
+For foreground troubleshooting:
 
 ```sh
 python -m pip install pyserial
-python tools/sync_titles_usb.py --port COM3
+python tools/sync_titles_usb.py
+python tools/sync_titles_usb.py --show-titles
 ```
 
-On macOS, use the corresponding `/dev/cu.usbserial-*` device instead of `COM3`.
+Use `--port COM3` or `--port /dev/cu.usbserial-*` only when automatic discovery
+cannot choose between multiple serial devices.
 The helper only reads the local Codex assignment state and writes titles over
-USB serial. It does not send titles through BLE.
+USB serial. It does not send titles through BLE or to a network service.
+Background logs redact task names by default; `--show-titles` is an explicit
+foreground debugging option.
+
+Pinned and Priority task sources are not yet mirrored by the helper. Select
+Recent or Custom in Codex Micro settings when title synchronization is needed.
 
 Do not run a second host writer against the active vendor BLE HID channel.
 Testing showed that concurrent HID writers can cause link-layer timeouts and
@@ -157,6 +182,7 @@ include/CodexMicroBle.h      BLE transport and shared state
 src/CodexMicroBle.cpp        HID descriptor, RPC framing, and host protocol
 src/main_stickc.cpp          UI, controls, IMU, title sync, and power behavior
 tools/sync_titles_usb.py     Local Codex assignment-title synchronizer
+tools/title_sync_service.py  One-command macOS/Windows service manager
 platformio.ini               Reproducible PlatformIO build
 ```
 
