@@ -369,6 +369,19 @@ void loadLabels() {
   }
 }
 
+void applyLabels(const std::array<String, 6>& labels) {
+  titleSyncActive = nextTitleUiActive(titleSyncActive, true);
+  for (int i = 0; i < 6; ++i) {
+    const String next = labels[i];
+    labelAssigned[i] = !next.isEmpty();
+    agentLabels[i] =
+        labelAssigned[i] ? next : String("Agent ") + (i + 1);
+    const String key = String("label") + i;
+    preferences.putString(key.c_str(), next);
+  }
+  drawScreen();
+}
+
 void processSerialSync() {
   static String input;
   while (Serial.available()) {
@@ -376,25 +389,33 @@ void processSerialSync() {
     if (ch == '\n') {
       DynamicJsonDocument doc(3072);
       if (!deserializeJson(doc, input) && doc["labels"].is<JsonArray>()) {
-        titleSyncActive = nextTitleUiActive(titleSyncActive, true);
         JsonArray labels = doc["labels"].as<JsonArray>();
+        std::array<String, 6> nextLabels;
         for (int i = 0; i < 6; ++i) {
-          String next = i < static_cast<int>(labels.size()) ? labels[i].as<String>() : String();
-          next.trim();
-          labelAssigned[i] = !next.isEmpty();
-          agentLabels[i] = labelAssigned[i] ? next : String("Agent ") + (i + 1);
-          const String key = String("label") + i;
-          preferences.putString(key.c_str(), next);
+          nextLabels[i] = i < static_cast<int>(labels.size())
+                              ? labels[i].as<String>()
+                              : String();
+          nextLabels[i].trim();
         }
+        applyLabels(nextLabels);
         Serial.println("TITLE_UI titles");
         Serial.println("TITLE_SYNC_OK");
-        drawScreen();
       }
       input.clear();
     } else if (input.length() < 4095) {
       input += ch;
     }
   }
+}
+
+void processBleTitleSync() {
+  std::array<String, 6> labels;
+  if (!codex.takeTitleLabels(labels)) {
+    return;
+  }
+  applyLabels(labels);
+  Serial.println("TITLE_UI titles");
+  Serial.println("TITLE_SYNC_BLE_OK");
 }
 
 void updateOrientation() {
@@ -602,6 +623,7 @@ void loop() {
   M5.update();
   codex.maintain();
   processSerialSync();
+  processBleTitleSync();
   updateVbusRecovery();
 
   if (M5.BtnPWR.wasClicked()) {
@@ -664,5 +686,4 @@ void loop() {
   updateScreenPower();
   delay(8);
 }
-
 

@@ -17,7 +17,8 @@ original M5StickC (ESP32-PICO-D4, 80 × 160 display).
 ## Highlights
 
 - Six Codex task slots with live status colors
-- Dynamically synchronized task titles over USB serial
+- Dynamically synchronized task titles over USB serial, with an experimental
+  macOS BLE transport
 - Portrait and landscape layouts selected by the built-in IMU
 - Two-button interface designed for the original M5StickC
 - Remappable command page for Approve, Decline, Mic/PTT, Send, Fast, and Fork
@@ -74,7 +75,8 @@ fuel gauge.
 - Data-capable USB-C cable
 - Windows or macOS with ChatGPT Desktop and Codex Micro support
 - [PlatformIO](https://platformio.org/)
-- Python 3.10+ with `pyserial` for PlatformIO and optional title synchronization
+- Python 3.10+ with `pyserial` for PlatformIO and optional USB title
+  synchronization
 
 ## Build and flash
 
@@ -107,12 +109,15 @@ settings, restart the M5StickC, and pair again.
 ## Task-title synchronization
 
 The Codex Micro protocol supplies slot colors and effects but not task titles.
-This repository includes a local USB serial helper that sends the six titles to
-the StickC. It follows Codex's default **Recent** task source from the local
-read-only thread database and also supports explicit **Custom** assignments.
+This repository includes a local helper that reads the six titles from Codex's
+local read-only thread database. It follows the default **Recent** task source
+and also supports explicit **Custom** assignments.
 
-Install the current-user background service with the same command on macOS and
-Windows (administrator access is not required):
+### USB background service
+
+USB serial remains the supported background transport. Install the current-user
+service with the same command on macOS and Windows (administrator access is not
+required):
 
 ```sh
 python tools/title_sync_service.py install
@@ -136,23 +141,42 @@ python tools/sync_titles_usb.py --show-titles
 
 Use `--port COM3` or `--port /dev/cu.usbserial-*` only when automatic discovery
 cannot choose between multiple serial devices.
-The helper only reads the local Codex assignment state and writes titles over
-USB serial. It does not send titles through BLE or to a network service.
-Background logs redact task names by default; `--show-titles` is an explicit
-foreground debugging option.
+The background helper only reads local Codex assignment state and writes titles
+over USB serial. It does not use a network service. Logs redact task names by
+default; `--show-titles` is an explicit foreground debugging option.
+
+### Experimental BLE title sync
+
+The firmware also advertises a separate encrypted GATT characteristic for
+titles. This does not write to the vendor HID channel used by ChatGPT. The
+macOS proof-of-concept can send one update without a USB data connection:
+
+```sh
+python -m pip install bleak==3.0.2
+PYTHONPATH=. python tools/sync_titles_ble.py --once
+```
+
+macOS may ask for Bluetooth permission for the terminal or app running the
+command. If an older pairing hides the new GATT service, forget **Codex Micro**,
+restart the StickC, and pair it again. The command reports only the number of
+assigned labels; it does not print titles or Bluetooth identifiers.
+
+The BLE proof has been validated on macOS while ChatGPT's HID connection
+remained active. Automatic background BLE sync and Windows BLE behavior are not
+yet validated, so the one-command service installer still uses USB.
 
 Every firmware boot starts with the normal single-task panel showing `AGENT N`
 in place of a task title, using a font sized for the current orientation. This
 fallback keeps host-supplied status colors but never displays cached titles or
-`UNASSIGNED`. The first valid USB title-sync packet switches that boot session
-to real task titles. Title mode remains active until the next reboot.
+`UNASSIGNED`. The first valid USB or BLE title-sync packet switches that boot
+session to real task titles. Title mode remains active until the next reboot.
 
 Pinned and Priority task sources are not yet mirrored by the helper. Select
 Recent or Custom in Codex Micro settings when title synchronization is needed.
 
-Do not run a second host writer against the active vendor BLE HID channel.
-Testing showed that concurrent HID writers can cause link-layer timeouts and
-make reconnection unreliable.
+Do not run a second host writer against the active vendor BLE HID
+characteristic. The experimental title service is a separate GATT
+characteristic and does not take ownership of the HID transport.
 
 ## Status display
 
@@ -174,8 +198,8 @@ ChatGPT Desktop updates.
 - Tested on the original M5StickC; M5StickC Plus variants are not yet validated.
 - The built-in microphone is not streamed to the computer.
 - The Mic/PTT action currently activates the host computer's microphone.
-- Task-title sync requires USB because the vendor HID channel must remain
-  single-owner.
+- BLE title sync is currently a manual macOS proof-of-concept; the background
+  service still uses USB, and Windows BLE behavior is unvalidated.
 - The vendor protocol is undocumented and may break after a desktop app update.
 - BLE reliability is sensitive to the original StickC's small battery and power
   path; keep a known-good firmware image available for recovery.
@@ -187,6 +211,7 @@ include/BatteryEstimator.h   Hybrid state-of-charge estimator
 include/CodexMicroBle.h      BLE transport and shared state
 src/CodexMicroBle.cpp        HID descriptor, RPC framing, and host protocol
 src/main_stickc.cpp          UI, controls, IMU, title sync, and power behavior
+tools/sync_titles_ble.py     Experimental one-shot macOS BLE title synchronizer
 tools/sync_titles_usb.py     Local Codex assignment-title synchronizer
 tools/title_sync_service.py  One-command macOS/Windows service manager
 platformio.ini               Reproducible PlatformIO build
