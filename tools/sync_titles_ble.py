@@ -7,7 +7,10 @@ import asyncio
 import json
 from pathlib import Path
 
-from tools.sync_titles_usb import read_labels, state_path
+try:
+    from tools.sync_titles_usb import read_labels, state_path
+except ModuleNotFoundError:
+    from sync_titles_usb import read_labels, state_path
 
 SERVICE_UUID = "5f83a25b-442d-4d56-bf3a-3e2f8b21e101"
 TITLE_UUID = "5f83a25b-442d-4d56-bf3a-3e2f8b21e102"

@@ -13,7 +13,12 @@ from pathlib import Path, PurePath
 
 SERVICE_ID = "io.github.codex-micro-stickc.title-sync"
 WINDOWS_TASK_NAME = "Codex Micro Title Sync"
-PYSERIAL_REQUIREMENT = "pyserial==3.5"
+RUNTIME_REQUIREMENTS = ("pyserial==3.5", "bleak==3.0.2")
+HELPER_NAMES = (
+    "sync_titles_auto.py",
+    "sync_titles_ble.py",
+    "sync_titles_usb.py",
+)
 RUNTIME_DIR = ".title-sync-venv"
 INSTALL_DIR = "CodexMicroTitleSync"
 
@@ -33,25 +38,55 @@ def runtime_python(root: PurePath, platform=sys.platform, background=False):
     return root / RUNTIME_DIR / "bin" / "python"
 
 
+def require_supported_python(version_info=None):
+    version_info = sys.version_info if version_info is None else version_info
+    if tuple(version_info[:2]) < (3, 10):
+        raise RuntimeError(
+            "Python 3.10 or newer is required to install BLE title sync."
+        )
+
+
+def runtime_probe_command(console: PurePath):
+    return [
+        str(console),
+        "-c",
+        (
+            "import sys; "
+            "assert sys.version_info >= (3, 10); "
+            "import serial, bleak"
+        ),
+    ]
+
+
+def create_runtime(
+    root: Path,
+    clear=False,
+    platform=sys.platform,
+    builder_factory=venv.EnvBuilder,
+):
+    builder_factory(
+        with_pip=True,
+        clear=clear,
+        symlinks=platform != "win32",
+    ).create(root)
+
+
 def ensure_runtime(root: Path, platform=sys.platform, runner=subprocess.run):
+    require_supported_python()
     console = Path(runtime_python(root, platform))
     if not console.exists():
-        venv.EnvBuilder(with_pip=True).create(root / RUNTIME_DIR)
+        create_runtime(root / RUNTIME_DIR, platform=platform)
 
     try:
         probe = runner(
-            [str(console), "-c", "import serial"],
+            runtime_probe_command(console),
             capture_output=True,
             text=True,
         )
     except OSError:
-        venv.EnvBuilder(with_pip=True, clear=True).create(root / RUNTIME_DIR)
-        probe = runner(
-            [str(console), "-c", "import serial"],
-            capture_output=True,
-            text=True,
-        )
+        probe = subprocess.CompletedProcess([], 1)
     if probe.returncode != 0:
+        create_runtime(root / RUNTIME_DIR, clear=True, platform=platform)
         runner(
             [
                 str(console),
@@ -59,7 +94,7 @@ def ensure_runtime(root: Path, platform=sys.platform, runner=subprocess.run):
                 "pip",
                 "install",
                 "--disable-pip-version-check",
-                PYSERIAL_REQUIREMENT,
+                *RUNTIME_REQUIREMENTS,
             ],
             check=True,
         )
@@ -79,11 +114,12 @@ def service_root(platform=sys.platform, home=None, environ=None):
     platform_name(platform)
 
 
-def copy_helper(project_root: Path, installed_root: Path):
-    destination = installed_root / "tools" / "sync_titles_usb.py"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(project_root / "tools" / "sync_titles_usb.py", destination)
-    return destination
+def copy_helpers(project_root: Path, installed_root: Path):
+    destination = installed_root / "tools"
+    destination.mkdir(parents=True, exist_ok=True)
+    for name in HELPER_NAMES:
+        shutil.copy2(project_root / "tools" / name, destination / name)
+    return destination / "sync_titles_auto.py"
 
 
 def build_macos_plist(root: PurePath, python: PurePath, home: PurePath):
@@ -92,7 +128,7 @@ def build_macos_plist(root: PurePath, python: PurePath, home: PurePath):
         "Label": SERVICE_ID,
         "ProgramArguments": [
             str(python),
-            str(root / "tools" / "sync_titles_usb.py"),
+            str(root / "tools" / "sync_titles_auto.py"),
         ],
         "RunAtLoad": True,
         "KeepAlive": True,
@@ -154,7 +190,7 @@ def uninstall_macos(home=None, uid=None, runner=subprocess.run):
 
 def build_windows_task_command(root: PurePath, python: PurePath):
     return subprocess.list2cmdline(
-        [str(python), str(root / "tools" / "sync_titles_usb.py")]
+        [str(python), str(root / "tools" / "sync_titles_auto.py")]
     )
 
 
@@ -206,7 +242,7 @@ def dispatch(action, root=None, platform=sys.platform):
 
     if action == "install":
         installed_root = service_root(platform)
-        copy_helper(root, installed_root)
+        copy_helpers(root, installed_root)
         python = ensure_runtime(installed_root, platform)
         if platform == "darwin":
             install_macos(installed_root, python)

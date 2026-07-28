@@ -113,11 +113,10 @@ This repository includes a local helper that reads the six titles from Codex's
 local read-only thread database. It follows the default **Recent** task source
 and also supports explicit **Custom** assignments.
 
-### USB background service
+### Automatic background service
 
-USB serial remains the supported background transport. Install the current-user
-service with the same command on macOS and Windows (administrator access is not
-required):
+Install the current-user service with the same command on macOS and Windows
+(administrator access is not required):
 
 ```sh
 python tools/title_sync_service.py install
@@ -126,24 +125,30 @@ python tools/title_sync_service.py uninstall
 ```
 
 The installer copies the helper into the current user's application-data
-directory, creates an isolated `.title-sync-venv` there, installs the pinned
-serial dependency, and registers the service with launchd on macOS or Task
-Scheduler on Windows. It automatically discovers the StickC serial port, so the
-same setup continues to work if the port name changes.
+directory, creates an isolated `.title-sync-venv` there, installs pinned USB and
+BLE dependencies, and registers the service with launchd on macOS or Task
+Scheduler on Windows. It prefers USB serial when available and automatically
+falls back to the encrypted BLE title characteristic after the cable is
+removed.
+
+Codex assignment changes are detected once per second and synchronized
+immediately. The service also refreshes unchanged titles every 30 seconds so a
+StickC restart restores its titles without requiring another assignment change.
 
 For foreground troubleshooting:
 
 ```sh
-python -m pip install pyserial
+python -m pip install pyserial bleak==3.0.2
+PYTHONPATH=. python tools/sync_titles_auto.py --once
 python tools/sync_titles_usb.py
 python tools/sync_titles_usb.py --show-titles
 ```
 
 Use `--port COM3` or `--port /dev/cu.usbserial-*` only when automatic discovery
-cannot choose between multiple serial devices.
-The background helper only reads local Codex assignment state and writes titles
-over USB serial. It does not use a network service. Logs redact task names by
-default; `--show-titles` is an explicit foreground debugging option.
+cannot choose between multiple serial devices. The background helper only reads
+local Codex assignment state and writes directly to the StickC; it does not use
+a network service. Logs redact task names by default; `--show-titles` is an
+explicit foreground USB debugging option.
 
 ### Experimental BLE title sync
 
@@ -157,13 +162,15 @@ PYTHONPATH=. python tools/sync_titles_ble.py --once
 ```
 
 macOS may ask for Bluetooth permission for the terminal or app running the
-command. If an older pairing hides the new GATT service, forget **Codex Micro**,
-restart the StickC, and pair it again. The command reports only the number of
-assigned labels; it does not print titles or Bluetooth identifiers.
+command. For background BLE fallback, enable the installed `python3` runtime in
+**System Settings → Privacy & Security → Bluetooth** when macOS first asks. If
+an older pairing hides the new GATT service, forget **Codex Micro**, restart the
+StickC, and pair it again. The command reports only the number of assigned
+labels; it does not print titles or Bluetooth identifiers.
 
-The BLE proof has been validated on macOS while ChatGPT's HID connection
-remained active. Automatic background BLE sync and Windows BLE behavior are not
-yet validated, so the one-command service installer still uses USB.
+BLE foreground and automatic fallback have been validated on macOS while
+ChatGPT's HID connection remained active. Windows keeps the same installer and
+USB fallback, but its BLE path is not yet validated.
 
 Every firmware boot starts with the normal single-task panel showing `AGENT N`
 in place of a task title, using a font sized for the current orientation. This
@@ -198,8 +205,8 @@ ChatGPT Desktop updates.
 - Tested on the original M5StickC; M5StickC Plus variants are not yet validated.
 - The built-in microphone is not streamed to the computer.
 - The Mic/PTT action currently activates the host computer's microphone.
-- BLE title sync is currently a manual macOS proof-of-concept; the background
-  service still uses USB, and Windows BLE behavior is unvalidated.
+- Automatic USB-to-BLE fallback is validated on macOS; Windows BLE behavior is
+  not yet validated and can continue to use USB.
 - The vendor protocol is undocumented and may break after a desktop app update.
 - BLE reliability is sensitive to the original StickC's small battery and power
   path; keep a known-good firmware image available for recovery.
@@ -211,6 +218,7 @@ include/BatteryEstimator.h   Hybrid state-of-charge estimator
 include/CodexMicroBle.h      BLE transport and shared state
 src/CodexMicroBle.cpp        HID descriptor, RPC framing, and host protocol
 src/main_stickc.cpp          UI, controls, IMU, title sync, and power behavior
+tools/sync_titles_auto.py    Background USB-to-BLE title synchronizer
 tools/sync_titles_ble.py     Experimental one-shot macOS BLE title synchronizer
 tools/sync_titles_usb.py     Local Codex assignment-title synchronizer
 tools/title_sync_service.py  One-command macOS/Windows service manager

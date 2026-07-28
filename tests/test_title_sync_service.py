@@ -25,7 +25,7 @@ class ServiceDefinitionTests(unittest.TestCase):
             payload["ProgramArguments"],
             [
                 "/tmp/example-user/project/.title-sync-venv/bin/python",
-                "/tmp/example-user/project/tools/sync_titles_usb.py",
+                "/tmp/example-user/project/tools/sync_titles_auto.py",
             ],
         )
         self.assertTrue(payload["RunAtLoad"])
@@ -43,8 +43,70 @@ class ServiceDefinitionTests(unittest.TestCase):
             command,
         )
         self.assertIn(
-            r'"C:\Users\Example User\codex micro\tools\sync_titles_usb.py"',
+            r'"C:\Users\Example User\codex micro\tools\sync_titles_auto.py"',
             command,
+        )
+
+    def test_runtime_installs_usb_and_ble_dependencies(self):
+        self.assertEqual(
+            service.RUNTIME_REQUIREMENTS,
+            ("pyserial==3.5", "bleak==3.0.2"),
+        )
+
+    def test_installer_requires_python_310_or_newer(self):
+        with self.assertRaisesRegex(RuntimeError, "Python 3.10"):
+            service.require_supported_python((3, 9))
+
+        service.require_supported_python((3, 10))
+
+    def test_runtime_probe_checks_version_and_dependencies(self):
+        command = service.runtime_probe_command(Path("/tmp/runtime/python"))
+
+        self.assertEqual(command[:2], ["/tmp/runtime/python", "-c"])
+        self.assertIn("sys.version_info >= (3, 10)", command[2])
+        self.assertIn("import serial, bleak", command[2])
+
+    def test_runtime_uses_symlinks_for_dynamic_python_builds(self):
+        factory = Mock()
+        builder = factory.return_value
+
+        service.create_runtime(
+            Path("/tmp/runtime"),
+            clear=True,
+            platform="darwin",
+            builder_factory=factory,
+        )
+
+        factory.assert_called_once_with(
+            with_pip=True,
+            clear=True,
+            symlinks=True,
+        )
+        builder.create.assert_called_once_with(Path("/tmp/runtime"))
+
+    def test_windows_runtime_does_not_require_symlink_privileges(self):
+        factory = Mock()
+
+        service.create_runtime(
+            Path("/tmp/runtime"),
+            platform="win32",
+            builder_factory=factory,
+        )
+
+        factory.assert_called_once_with(
+            with_pip=True,
+            clear=False,
+            symlinks=False,
+        )
+
+    def test_installer_copies_all_transport_helpers(self):
+        self.assertEqual(
+            service.HELPER_NAMES,
+            (
+                "sync_titles_auto.py",
+                "sync_titles_ble.py",
+                "sync_titles_usb.py",
+            ),
         )
 
     def test_unsupported_platform_is_rejected(self):
