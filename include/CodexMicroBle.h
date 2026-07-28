@@ -48,14 +48,18 @@ class CodexMicroBle {
   void sendJoystick(float angle, float distance);
   bool connected();
   CodexMicroState snapshot();
+  bool takeTitleLabels(std::array<String, 6>& labels);
 
  private:
   class ServerCallbacks;
   class InputCallbacks;
   class OutputCallbacks;
+  class TitleCallbacks;
 
   void onConnected(bool connected, int reason = 0);
   void onOutput(const uint8_t* data, size_t length);
+  void onTitleWrite(NimBLECharacteristic* characteristic,
+                    const uint8_t* data, size_t length);
   void updateConnectionInfo(NimBLEConnInfo& info);
   void handleRpc(const JsonDocument& request);
   void sendResult(JsonVariantConst id, JsonVariantConst result);
@@ -70,14 +74,19 @@ class CodexMicroBle {
   NimBLEHIDDevice* hid_ = nullptr;
   NimBLECharacteristic* input_ = nullptr;
   NimBLECharacteristic* output_ = nullptr;
+  NimBLECharacteristic* titleSync_ = nullptr;
   SemaphoreHandle_t stateMutex_ = nullptr;
   QueueHandle_t txQueue_ = nullptr;
   TaskHandle_t txTask_ = nullptr;
   CodexMicroState state_;
   String rpcBuffer_;
+  String titleRxBuffer_;
+  std::array<String, 6> pendingTitleLabels_;
+  bool titleLabelsPending_ = false;
   uint8_t batteryPercentage_ = 100;
   bool charging_ = false;
   int16_t batteryVoltageMv_ = 0;
+  uint8_t connectionCount_ = 0;
   int lastDisconnectReason_ = 0;
   uint32_t disconnectCount_ = 0;
   uint32_t lastLinkPulseMs_ = 0;
@@ -86,4 +95,3 @@ class CodexMicroBle {
   uint16_t connLatency_ = 0;
   uint16_t connMtu_ = 0;
 };
-

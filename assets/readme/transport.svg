@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Micro 双通道本地架构</title>
+  <desc id="desc">ChatGPT 使用 BLE HID 传输状态和按键；本地标题同步服务优先使用 USB，并以独立的加密 BLE 特征作为回退。</desc>
+
+  <rect width="1200" height="500" rx="28" fill="#F7F9F6"/>
+  <rect x="1" y="1" width="1198" height="498" rx="27" fill="none" stroke="#C9D5CD" stroke-width="2"/>
+
+  <text x="56" y="68" fill="#172019" font-size="42" font-weight="760" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">一台设备，两条独立通道</text>
+  <text x="56" y="104" fill="#627269" font-size="21" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">One device, two clean channels · control stays on HID, titles stay out of HID</text>
+
+  <g transform="translate(56 146)">
+    <rect width="294" height="270" rx="20" fill="#FFFFFF" stroke="#B8C7BE" stroke-width="2"/>
+    <text x="26" y="38" fill="#627269" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">计算机 · COMPUTER</text>
+
+    <rect x="24" y="62" width="246" height="68" rx="12" fill="#EAF3FB" stroke="#9CC2E5"/>
+    <circle cx="48" cy="96" r="7" fill="#3B8EDB"/>
+    <text x="68" y="104" fill="#173C5D" font-size="23" font-weight="700" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">ChatGPT Desktop</text>
+
+    <rect x="24" y="152" width="246" height="82" rx="12" fill="#EAF5EE" stroke="#A6D1B6"/>
+    <circle cx="48" cy="188" r="7" fill="#27B978"/>
+    <text x="68" y="184" fill="#24593C" font-size="21" font-weight="700" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">本地 Codex 状态</text>
+    <text x="68" y="212" fill="#627269" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">Recent / Custom</text>
+  </g>
+
+  <path d="M350 215C500 150 692 150 844 208" fill="none" stroke="#3B8EDB" stroke-width="4"/>
+  <path d="M834 193L866 217L827 223Z" fill="#3B8EDB"/>
+  <text x="600" y="166" text-anchor="middle" fill="#265D8F" font-size="20" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">任务状态 ↔ 按键操作 · STATUS ↔ ACTIONS</text>
+
+  <path d="M350 342H448" stroke="#27B978" stroke-width="4"/>
+  <path d="M438 327L470 342L438 357Z" fill="#27B978"/>
+
+  <g transform="translate(470 262)">
+    <rect width="282" height="126" rx="18" fill="#FFF9EE" stroke="#DAB47E" stroke-width="2"/>
+    <text x="24" y="34" fill="#8A541D" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">标题同步 · TITLE SYNC</text>
+    <text x="24" y="72" fill="#35291C" font-size="24" font-weight="740" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">USB 优先 · USB first</text>
+    <text x="24" y="103" fill="#815F3C" font-size="19" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">加密 BLE 回退 · encrypted fallback</text>
+  </g>
+
+  <path d="M752 325C798 325 817 307 846 301" fill="none" stroke="#D9892F" stroke-width="4"/>
+  <path d="M836 287L868 298L840 317Z" fill="#D9892F"/>
+  <text x="808" y="350" text-anchor="middle" fill="#81501D" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">仅标题</text>
+
+  <g transform="translate(868 146)">
+    <rect width="274" height="270" rx="24" fill="#E7ECE8" stroke="#AAB7AF" stroke-width="2"/>
+    <rect x="10" y="10" width="254" height="250" rx="18" fill="#FFFFFF"/>
+    <text x="30" y="45" fill="#627269" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">M5STICKC</text>
+    <text x="30" y="82" fill="#172019" font-size="28" font-weight="760" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">Codex Micro</text>
+
+    <rect x="30" y="108" width="214" height="48" rx="10" fill="#EAF3FB" stroke="#9CC2E5"/>
+    <circle cx="52" cy="132" r="6" fill="#3B8EDB"/>
+    <text x="70" y="139" fill="#265D8F" font-size="19" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">BLE HID</text>
+
+    <rect x="30" y="174" width="214" height="52" rx="10" fill="#FFF4E7" stroke="#E0B679"/>
+    <circle cx="52" cy="200" r="6" fill="#D9892F"/>
+    <text x="70" y="207" fill="#81501D" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">TITLE GATT / USB</text>
+  </g>
+
+  <g transform="translate(470 430)">
+    <rect width="282" height="42" rx="21" fill="#EAF5EE" stroke="#A6D1B6"/>
+    <circle cx="24" cy="21" r="6" fill="#27B978"/>
+    <text x="42" y="28" fill="#24593C" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">仅在本地 · NO CLOUD RELAY</text>
+  </g>
+</svg>

@@ -6,6 +6,8 @@
 #include <NimBLEDevice.h>
 #include <esp_system.h>
 
+#include "BleConnectionState.h"
+
 namespace {
 
 constexpr char kDeviceName[] = "Codex Micro";
@@ -14,6 +16,10 @@ constexpr char kFirmwareVersion[] = "0.8.0-stickc-power-soc";
 constexpr size_t kPayloadSize = 61;
 constexpr size_t kReportBodySize = 63;
 constexpr size_t kTxQueueDepth = 12;
+constexpr size_t kTitlePayloadLimit = 4096;
+constexpr char kTitleServiceUuid[] = "5f83a25b-442d-4d56-bf3a-3e2f8b21e101";
+constexpr char kTitleCharacteristicUuid[] =
+    "5f83a25b-442d-4d56-bf3a-3e2f8b21e102";
 // Windows negotiates a 30 ms connection interval with the StickC.
 // Send at most one HID fragment per connection event.
 constexpr TickType_t kReportPacing = pdMS_TO_TICKS(35);
@@ -46,6 +52,7 @@ class CodexMicroBle::ServerCallbacks final : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* server, NimBLEConnInfo& info) override {
     owner_.updateConnectionInfo(info);
     owner_.onConnected(true);
+    NimBLEDevice::startAdvertising();
   }
 
   void onConnParamsUpdate(NimBLEConnInfo& info) override {
@@ -89,6 +96,21 @@ class CodexMicroBle::InputCallbacks final : public NimBLECharacteristicCallbacks
   }
 };
 
+class CodexMicroBle::TitleCallbacks final
+    : public NimBLECharacteristicCallbacks {
+ public:
+  explicit TitleCallbacks(CodexMicroBle& owner) : owner_(owner) {}
+
+  void onWrite(NimBLECharacteristic* characteristic,
+               NimBLEConnInfo&) override {
+    const NimBLEAttValue value = characteristic->getValue();
+    owner_.onTitleWrite(characteristic, value.data(), value.length());
+  }
+
+ private:
+  CodexMicroBle& owner_;
+};
+
 void CodexMicroBle::begin() {
   stateMutex_ = xSemaphoreCreateMutex();
   txQueue_ = xQueueCreate(kTxQueueDepth, sizeof(String*));
@@ -114,6 +136,16 @@ void CodexMicroBle::begin() {
   input_->setCallbacks(new InputCallbacks());
   output_ = hid_->getOutputReport(kReportId);
   output_->setCallbacks(new OutputCallbacks(*this));
+
+  NimBLEService* titleService = server->createService(kTitleServiceUuid);
+  titleSync_ = titleService->createCharacteristic(
+      kTitleCharacteristicUuid,
+      NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE |
+          NIMBLE_PROPERTY::READ_ENC | NIMBLE_PROPERTY::WRITE_ENC,
+      512);
+  titleSync_->setCallbacks(new TitleCallbacks(*this));
+  titleSync_->setValue("TITLE_SYNC_READY");
+
   server->start();
   hid_->setBatteryLevel(batteryPercentage_, false);
 
@@ -121,6 +153,7 @@ void CodexMicroBle::begin() {
   advertising->setAppearance(GENERIC_HID);
   advertising->setName(kDeviceName);
   advertising->addServiceUUID(hid_->getHidService()->getUUID());
+  advertising->addServiceUUID(kTitleServiceUuid);
   advertising->enableScanResponse(true);
   advertising->start();
 
@@ -191,23 +224,46 @@ CodexMicroState CodexMicroBle::snapshot() {
   return copy;
 }
 
+bool CodexMicroBle::takeTitleLabels(std::array<String, 6>& labels) {
+  if (stateMutex_ == nullptr) {
+    return false;
+  }
+  xSemaphoreTake(stateMutex_, portMAX_DELAY);
+  const bool available = titleLabelsPending_;
+  if (available) {
+    labels = pendingTitleLabels_;
+    titleLabelsPending_ = false;
+  }
+  xSemaphoreGive(stateMutex_);
+  return available;
+}
+
 void CodexMicroBle::onConnected(bool connected, int reason) {
   xSemaphoreTake(stateMutex_, portMAX_DELAY);
-  state_.connected = connected;
-  state_.ready = false;
-  if (!connected) {
+  const bool wasConnected = bleHasConnections(connectionCount_);
+  connectionCount_ = connected ? bleConnectionAdded(connectionCount_)
+                               : bleConnectionRemoved(connectionCount_);
+  state_.connected = bleHasConnections(connectionCount_);
+  if (!wasConnected && state_.connected) {
+    state_.ready = false;
+  }
+  if (!state_.connected) {
+    state_.ready = false;
     lastDisconnectReason_ = reason;
     ++disconnectCount_;
     state_.disconnectReason = reason;
     state_.disconnectCount = disconnectCount_;
   }
   state_.dirty = true;
+  const bool fullyDisconnected = !state_.connected;
+  const uint8_t connectionCount = connectionCount_;
   xSemaphoreGive(stateMutex_);
-  if (!connected) {
+  if (fullyDisconnected) {
     rpcBuffer_.clear();
     clearTxQueue();
   }
-  Serial.printf("BLE host %s\n", connected ? "connected" : "disconnected");
+  Serial.printf("BLE link %s count=%u\n",
+                connected ? "connected" : "disconnected", connectionCount);
 }
 
 void CodexMicroBle::updateConnectionInfo(NimBLEConnInfo& info) {
@@ -271,6 +327,47 @@ void CodexMicroBle::onOutput(const uint8_t* data, size_t length) {
 
   handleRpc(request);
   rpcBuffer_.clear();
+}
+
+void CodexMicroBle::onTitleWrite(NimBLECharacteristic* characteristic,
+                                 const uint8_t* data, size_t length) {
+  if (data == nullptr || length == 0) {
+    return;
+  }
+  if (titleRxBuffer_.length() + length > kTitlePayloadLimit) {
+    titleRxBuffer_.clear();
+    characteristic->setValue("TITLE_SYNC_ERROR");
+    return;
+  }
+  titleRxBuffer_.concat(reinterpret_cast<const char*>(data), length);
+  const int newline = titleRxBuffer_.indexOf('\n');
+  if (newline < 0) {
+    return;
+  }
+
+  const String packet = titleRxBuffer_.substring(0, newline);
+  titleRxBuffer_.remove(0, newline + 1);
+  DynamicJsonDocument document(3072);
+  if (deserializeJson(document, packet) ||
+      !document["labels"].is<JsonArray>()) {
+    titleRxBuffer_.clear();
+    characteristic->setValue("TITLE_SYNC_ERROR");
+    return;
+  }
+
+  std::array<String, 6> labels;
+  JsonArray values = document["labels"].as<JsonArray>();
+  for (int i = 0; i < 6; ++i) {
+    labels[i] =
+        i < static_cast<int>(values.size()) ? values[i].as<String>() : String();
+    labels[i].trim();
+  }
+
+  xSemaphoreTake(stateMutex_, portMAX_DELAY);
+  pendingTitleLabels_ = labels;
+  titleLabelsPending_ = true;
+  xSemaphoreGive(stateMutex_);
+  characteristic->setValue("TITLE_SYNC_OK");
 }
 
 void CodexMicroBle::handleRpc(const JsonDocument& request) {
@@ -438,8 +535,6 @@ void CodexMicroBle::updateLightingSide(LightingSide& side, JsonObjectConst value
   side.effect = value["e"] | side.effect;
   side.speed = value["s"] | side.speed;
 }
-
-
 
 
 

@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Micro for M5StickC</title>
+  <desc id="desc">浅色双语主视觉，展示原版 M5StickC 上的六任务 Codex 状态与控制界面。</desc>
+
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#DDE6DF" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="420" rx="28" fill="#F7F9F6"/>
+  <rect x="1" y="1" width="1198" height="418" rx="27" fill="none" stroke="#C9D5CD" stroke-width="2"/>
+  <rect width="1200" height="420" rx="28" fill="url(#grid)" opacity=".55"/>
+  <path d="M0 325H1200" stroke="#D5DFD8"/>
+
+  <g transform="translate(64 45)">
+    <text x="0" y="0" dominant-baseline="hanging" fill="#627269" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" letter-spacing="2.4">ESP32 · BLE HID · LOCAL-FIRST</text>
+    <text x="0" y="82" fill="#172019" font-size="64" font-weight="760" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">Codex Micro</text>
+    <text x="0" y="139" fill="#25372D" font-size="31" font-weight="650" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">M5StickC 本地任务控制器</text>
+    <text x="0" y="177" fill="#627269" font-size="21" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">Local task controller for the original M5StickC</text>
+    <text x="0" y="231" fill="#44564C" font-size="22" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">六个任务，一眼查看；两枚按键，立即处理。</text>
+    <text x="0" y="263" fill="#6E7D74" font-size="19" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">See six tasks. Open the one that needs you.</text>
+
+    <g transform="translate(0 296)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">
+      <rect width="126" height="38" rx="19" fill="#E8F5ED" stroke="#A8D4B9"/>
+      <circle cx="21" cy="19" r="5" fill="#27B978"/>
+      <text x="36" y="25" fill="#235E40">6 TASKS</text>
+      <rect x="140" width="132" height="38" rx="19" fill="#E9F2FB" stroke="#A8C8E8"/>
+      <circle cx="161" cy="19" r="5" fill="#3B8EDB"/>
+      <text x="176" y="25" fill="#265D8F">BLE HID</text>
+      <rect x="286" width="150" height="38" rx="19" fill="#FBF0E3" stroke="#E4BE8A"/>
+      <circle cx="307" cy="19" r="5" fill="#D9892F"/>
+      <text x="322" y="25" fill="#81501D">USB → BLE</text>
+    </g>
+  </g>
+
+  <g transform="translate(722 34)">
+    <path d="M0 82H70" stroke="#9EB4A7" stroke-width="2"/>
+    <circle cx="0" cy="82" r="5" fill="#3B8EDB"/>
+    <text x="0" y="60" fill="#627269" font-size="17" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">CONTROL</text>
+    <path d="M0 278H70" stroke="#D5AC79" stroke-width="2"/>
+    <circle cx="0" cy="278" r="5" fill="#D9892F"/>
+    <text x="0" y="256" fill="#627269" font-size="17" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">TITLES</text>
+
+    <g transform="translate(72 0)">
+      <rect width="222" height="350" rx="30" fill="#D8DFDA" stroke="#AAB7AF" stroke-width="2"/>
+      <rect x="8" y="8" width="206" height="334" rx="24" fill="#FAFCFA"/>
+      <rect x="25" y="25" width="172" height="277" rx="12" fill="#F1F6F2" stroke="#AABBB0" stroke-width="2"/>
+      <rect x="214" y="74" width="9" height="58" rx="4" fill="#96A49C"/>
+
+      <g transform="translate(39 41)">
+        <text x="0" y="0" dominant-baseline="hanging" fill="#627269" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">TASK</text>
+        <text x="145" y="0" text-anchor="end" dominant-baseline="hanging" fill="#627269" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">2/6 · 72%</text>
+        <path d="M0 25H145" stroke="#CFDAD2"/>
+        <text x="0" y="61" fill="#172019" font-size="20" font-weight="700" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">修复 BLE</text>
+        <text x="0" y="88" fill="#172019" font-size="20" font-weight="700" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">重连问题</text>
+
+        <rect x="0" y="111" width="145" height="52" rx="10" fill="#FFF6E9" stroke="#D9892F" stroke-width="2"/>
+        <circle cx="22" cy="137" r="7" fill="#D9892F"/>
+        <text x="39" y="144" fill="#754718" font-size="18" font-weight="700" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ACTION</text>
+
+        <rect x="0" y="183" width="68" height="41" rx="9" fill="#EAF3ED" stroke="#B9C9BF"/>
+        <rect x="77" y="183" width="68" height="41" rx="9" fill="#EAF3ED" stroke="#B9C9BF"/>
+        <text x="34" y="199" text-anchor="middle" fill="#172019" font-size="16" font-weight="700" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">A</text>
+        <text x="111" y="199" text-anchor="middle" fill="#172019" font-size="16" font-weight="700" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">B</text>
+        <text x="34" y="217" text-anchor="middle" fill="#627269" font-size="10" font-family="PingFang SC, sans-serif">下一个</text>
+        <text x="111" y="217" text-anchor="middle" fill="#627269" font-size="10" font-family="PingFang SC, sans-serif">打开</text>
+      </g>
+
+      <circle cx="111" cy="322" r="8" fill="#5C6B62"/>
+      <circle cx="111" cy="322" r="3" fill="#F7FAF8"/>
+    </g>
+
+    <g transform="translate(316 52)">
+      <circle cx="0" cy="0" r="6" fill="#27B978"/>
+      <circle cx="0" cy="34" r="6" fill="#3B8EDB"/>
+      <circle cx="0" cy="68" r="6" fill="#D9892F"/>
+      <circle cx="0" cy="102" r="6" fill="#27B978"/>
+      <circle cx="0" cy="136" r="6" fill="#DA5964"/>
+      <circle cx="0" cy="170" r="6" fill="#91A098"/>
+      <path d="M0 6V28M0 40V62M0 74V96M0 108V130M0 142V164" stroke="#B9C8BF" stroke-width="2"/>
+    </g>
+  </g>
+
+  <text x="1136" y="391" text-anchor="end" fill="#7B8A81" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ORIGINAL M5STICKC · 80×160</text>
+</svg>
