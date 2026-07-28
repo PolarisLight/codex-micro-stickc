@@ -11,9 +11,10 @@ that boot session.
 
 - Add a volatile `titleSyncActive` flag initialized to `false`.
 - Do not use labels persisted from an earlier boot to select the initial UI.
-- While the flag is false, the task page shows the six numbered agent slots and
-  their host-supplied colors/effects. It does not render task titles or the
-  `UNASSIGNED` text.
+- While the flag is false, the task page retains the existing single-task
+  title/status-card layout. The title region displays `AGENT N` with a
+  panel-appropriate font, while the status card uses host-supplied
+  colors/effects and never renders `UNASSIGNED`.
 - A valid newline-delimited JSON object containing a `labels` array sets the
   flag to `true`, updates and persists all six labels, acknowledges the packet,
   and redraws the screen.
@@ -21,6 +22,8 @@ that boot session.
   disconnects. Empty slots retain the existing title-mode behavior.
 - Commands, controls, BLE transport, orientation, battery, and power management
   remain unchanged.
+- On the task page, the header shows the selected `N/6` at top left instead of
+  the redundant `TASK` label. Battery and link state remain at top right.
 
 ## Validation
 

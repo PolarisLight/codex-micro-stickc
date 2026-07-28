@@ -8,6 +8,7 @@
 
 #include "BatteryEstimator.h"
 #include "CodexMicroBle.h"
+#include "TitleUiMode.h"
 
 RTC_DATA_ATTR uint32_t recoveryBootMagic = 0;
 
@@ -43,6 +44,7 @@ CodexMicroState state;
 Preferences preferences;
 String agentLabels[6];
 bool labelAssigned[6] = {};
+bool titleSyncActive = false;
 Page page = Page::Tasks;
 uint8_t selectedAgent = 0;
 uint8_t selectedCommand = 0;
@@ -130,6 +132,18 @@ void drawTitleInRegion(const String& title, int centerX, int top, int regionHeig
   }
 }
 
+void drawTaskIdentity(int centerX, int top, int regionHeight, int maxWidth,
+                      int maxLines) {
+  if (titleSyncActive) {
+    drawTitleInRegion(agentLabels[selectedAgent], centerX, top, regionHeight,
+                      maxWidth, maxLines);
+    return;
+  }
+  M5.Display.setFont(maxWidth < 100 ? &fonts::Font2 : &fonts::Font4);
+  drawCentered(String("AGENT ") + (selectedAgent + 1), centerX,
+               top + regionHeight / 2, kText);
+}
+
 const char* statusLabel(const ThreadLight& light, bool assigned) {
   if (!assigned) return "UNASSIGNED";
   const uint8_t r = (light.color >> 16) & 0xFF;
@@ -157,12 +171,17 @@ void drawHeader(int width) {
   M5.Display.setTextColor(kMuted, kBackground);
   const String leftHeader = !state.connected && state.disconnectReason != 0
                                 ? String("BLE R") + state.disconnectReason
-                                : (page == Page::Tasks ? "TASK" : "ACTION");
+                                : (page == Page::Tasks
+                                       ? String(selectedAgent + 1) + "/6"
+                                       : "ACTION");
   M5.Display.drawString(leftHeader, 5, 4);
   M5.Display.setTextDatum(top_right);
-  const uint8_t index = page == Page::Tasks ? selectedAgent : selectedCommand;
-  String headerRight = String(index + 1) + "/6";
-  if (batteryLevel >= 0) headerRight += " " + String(batteryLevel) + "%";
+  String headerRight =
+      page == Page::Commands ? String(selectedCommand + 1) + "/6" : "";
+  if (batteryLevel >= 0) {
+    if (!headerRight.isEmpty()) headerRight += " ";
+    headerRight += String(batteryLevel) + "%";
+  }
   M5.Display.drawString(headerRight, width - 17, 4);
   const uint16_t linkColor = state.ready ? kGreen : (state.connected ? kOrange : kRed);
   M5.Display.fillCircle(width - 7, 9, 4, linkColor);
@@ -212,18 +231,19 @@ void drawLandscapeFooter(int width, int height) {
 
 void drawPortraitTask(int width) {
   const ThreadLight& light = state.threads[selectedAgent];
-  const char* status = statusLabel(light, labelAssigned[selectedAgent]);
-  drawTitleInRegion(agentLabels[selectedAgent], width / 2, 25, 108, width - 10, 4);
+  const char* status = statusLabel(
+      light, taskStatusAssigned(titleSyncActive, labelAssigned[selectedAgent]));
+  drawTaskIdentity(width / 2, 25, 108, width - 10, 4);
   drawStatusCard(5, 137, width - 10, 50, status,
                  statusColorFor(light, status), false);
 }
 
 void drawLandscapeTask(int width, int height) {
   const ThreadLight& light = state.threads[selectedAgent];
-  const char* status = statusLabel(light, labelAssigned[selectedAgent]);
+  const char* status = statusLabel(
+      light, taskStatusAssigned(titleSyncActive, labelAssigned[selectedAgent]));
   constexpr int splitX = 151;
-  drawTitleInRegion(agentLabels[selectedAgent], splitX / 2, 22, 78,
-                    splitX - 10, 3);
+  drawTaskIdentity(splitX / 2, 22, 78, splitX - 10, 3);
   drawStatusCard(splitX + 2, 24, width - splitX - 7, 74, status,
                  statusColorFor(light, status), true);
 }
@@ -356,6 +376,7 @@ void processSerialSync() {
     if (ch == '\n') {
       DynamicJsonDocument doc(3072);
       if (!deserializeJson(doc, input) && doc["labels"].is<JsonArray>()) {
+        titleSyncActive = nextTitleUiActive(titleSyncActive, true);
         JsonArray labels = doc["labels"].as<JsonArray>();
         for (int i = 0; i < 6; ++i) {
           String next = i < static_cast<int>(labels.size()) ? labels[i].as<String>() : String();
@@ -365,6 +386,7 @@ void processSerialSync() {
           const String key = String("label") + i;
           preferences.putString(key.c_str(), next);
         }
+        Serial.println("TITLE_UI titles");
         Serial.println("TITLE_SYNC_OK");
         drawScreen();
       }
@@ -569,6 +591,7 @@ void setup() {
                    static_cast<int16_t>(batteryVoltageMv));
   state = codex.snapshot();
   drawScreen();
+  Serial.println("TITLE_UI status");
   Serial.printf("POWER_INIT soc=%.1f level=%d voltage_mv=%d current_ma=%d vbus=%d\n",
                 battery.soc(), batteryLevel, batteryVoltageMv, batteryCurrentMa,
                 batteryExternalPower);
@@ -641,8 +664,5 @@ void loop() {
   updateScreenPower();
   delay(8);
 }
-
-
-
 
 

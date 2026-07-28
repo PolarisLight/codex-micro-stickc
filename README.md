@@ -141,6 +141,12 @@ USB serial. It does not send titles through BLE or to a network service.
 Background logs redact task names by default; `--show-titles` is an explicit
 foreground debugging option.
 
+Every firmware boot starts with the normal single-task panel showing `AGENT N`
+in place of a task title, using a font sized for the current orientation. This
+fallback keeps host-supplied status colors but never displays cached titles or
+`UNASSIGNED`. The first valid USB title-sync packet switches that boot session
+to real task titles. Title mode remains active until the next reboot.
+
 Pinned and Priority task sources are not yet mirrored by the helper. Select
 Recent or Custom in Codex Micro settings when title synchronization is needed.
 
