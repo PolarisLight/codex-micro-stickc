@@ -7,6 +7,8 @@
   ·
   <a href="#english-summary">English</a>
   ·
+  <a href="https://polarislight.github.io/codex-micro-stickc/">Project Page</a>
+  ·
   <a href="https://github.com/PolarisLight/codex-micro-stickc/releases">Releases</a>
   ·
   <a href="LICENSE">MIT License</a>
