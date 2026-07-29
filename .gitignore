@@ -3,6 +3,7 @@
 .venv/
 .venv*/
 .title-sync-venv/
+.worktrees/
 .vscode/
 __pycache__/
 *.pyc
