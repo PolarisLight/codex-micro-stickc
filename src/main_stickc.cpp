@@ -9,6 +9,7 @@
 
 #include "BatteryEstimator.h"
 #include "CodexMicroBle.h"
+#include "OrientationPolicy.h"
 #include "PowerModePolicy.h"
 #include "TitlePersistencePolicy.h"
 #include "TitleUiMode.h"
@@ -73,7 +74,6 @@ uint8_t pendingRotation = 0;
 uint32_t orientationPendingSince = 0;
 uint32_t lastImuMs = 0;
 uint32_t orientationLockUntil = 0;
-float gyroTurnDegrees = 0.0f;
 int batteryLevel = -1;
 int batteryVoltageMv = 0;
 bool batteryCharging = false;
@@ -307,7 +307,6 @@ void setScreenPower(ScreenPower mode) {
       M5.Imu.begin(&M5.In_I2C, M5.getBoard());
       imuSleeping = false;
       lastImuMs = 0;
-      gyroTurnDegrees = 0.0f;
     }
     Serial.printf("SCREEN wake cpu_mhz=%u freq_ok=%d\n",
                   getCpuFrequencyMhz(), frequencyChanged);
@@ -449,45 +448,25 @@ void processBleTitleSync() {
 void updateOrientation() {
   const uint32_t now = millis();
   if (!M5.Imu.isEnabled() || now - lastImuMs < 20) return;
-  const float dt = lastImuMs == 0 ? 0.0f : (now - lastImuMs) / 1000.0f;
   lastImuMs = now;
   if (!M5.Imu.update()) return;
 
   float ax = 0.0f, ay = 0.0f, az = 0.0f;
-  float gx = 0.0f, gy = 0.0f, gz = 0.0f;
   if (!M5.Imu.getAccel(&ax, &ay, &az)) return;
-  if (!M5.Imu.getGyro(&gx, &gy, &gz)) return;
   if (static_cast<int32_t>(now - orientationLockUntil) < 0) {
-    gyroTurnDegrees = 0.0f;
     return;
   }
 
+  const OrientationDecision gravity = gravityOrientation(ax, ay);
   uint8_t desired = displayRotation;
-  if (fabsf(ax) > fabsf(ay) + 0.15f && fabsf(ax) > 0.55f) {
-    desired = ax > 0.0f ? 1 : 3;
-  } else if (fabsf(ay) > fabsf(ax) + 0.15f && fabsf(ay) > 0.55f) {
-    desired = 0;
+  if (gravity.valid) {
+    desired = gravity.rotation;
   } else {
-    // Flat on a desk: gravity is on Z, so integrate a deliberate Z-axis turn.
-    if (fabsf(az) > 0.65f && fabsf(gz) > 12.0f) {
-      gyroTurnDegrees += gz * dt;
-    } else {
-      gyroTurnDegrees *= 0.82f;
-    }
-    if (fabsf(gyroTurnDegrees) >= 52.0f) {
-      desired = (displayRotation + (gyroTurnDegrees > 0.0f ? 1 : 3)) & 3;
-      gyroTurnDegrees = 0.0f;
-      orientationLockUntil = now + 650;
-      displayRotation = desired;
-      pendingRotation = desired;
-      M5.Display.setRotation(displayRotation);
-      Serial.printf("ORIENTATION gyro rotation=%u\n", displayRotation);
-      drawScreen();
-    }
+    pendingRotation = displayRotation;
+    orientationPendingSince = now;
     return;
   }
 
-  gyroTurnDegrees = 0.0f;
   if (desired != pendingRotation) {
     pendingRotation = desired;
     orientationPendingSince = now;
