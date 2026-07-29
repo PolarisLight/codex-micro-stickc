@@ -84,7 +84,7 @@ ChatGPT's Codex Micro protocol supplies slot colors and effects, but not task na
 
 1. Reads Codex's local assignment state and task database in read-only mode.
 2. Follows the default **Recent** source or explicit **Custom** assignments.
-3. Detects assignment changes once per second and refreshes unchanged titles every 30 seconds.
+3. Detects assignment changes once per second and refreshes unchanged titles every 5 minutes.
 4. Writes directly to the StickC over USB serial when available.
 5. Falls back to a separate encrypted BLE GATT characteristic after USB disappears.
 
@@ -93,7 +93,11 @@ The title characteristic does not reuse, take ownership of, or write to the vend
 Every boot begins with `AGENT N`. Real titles appear only after the first valid title packet, preventing stale cached names from being displayed.
 
 > [!NOTE]
-> **Recent** and **Custom** are supported. **Pinned** and **Priority** are not yet mirrored. Automatic BLE fallback is validated on macOS; Windows is validated over USB, while its BLE path still needs testing.
+After HID connects, connectable advertising for the title service slows to
+about once per second to reduce continuous radio cost on the original StickC
+battery. **Recent** and **Custom** are supported. **Pinned** and **Priority** are
+not yet mirrored. Automatic BLE fallback is validated on macOS; Windows is
+validated over USB, while its BLE path still needs testing.
 
 ## Controls
 
@@ -121,7 +125,11 @@ Exact colors and effects are supplied by ChatGPT Desktop and may change between 
 
 ## Power and battery
 
-To preserve the active Codex Micro connection, the firmware does not put the ESP32 or BLE controller into light or deep sleep. Power is saved at the display level instead:
+To preserve the active Codex Micro connection, the firmware does not put the
+ESP32 or BLE controller into light or deep sleep. When the screen turns off, the
+IMU enters hardware sleep, the CPU drops from 240 MHz to 80 MHz, and the main
+loop polls less often. A button wake restores full performance while BLE HID
+stays connected:
 
 | Power source | Display behavior |
 | --- | --- |

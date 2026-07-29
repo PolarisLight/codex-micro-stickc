@@ -23,7 +23,7 @@ except ModuleNotFoundError:
     from sync_titles_ble import sync_summary
     from sync_titles_usb import choose_port, open_serial, read_labels, send, state_path
 
-REFRESH_SECONDS = 30.0
+REFRESH_SECONDS = 300.0
 
 
 def should_sync(labels, previous, now, last_sync, refresh=REFRESH_SECONDS):

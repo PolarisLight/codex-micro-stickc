@@ -19,10 +19,10 @@ class SchedulingTests(unittest.TestCase):
         labels = ["Same task", "", "", "", "", ""]
 
         self.assertFalse(
-            should_sync(labels, labels, now=39.0, last_sync=10.0)
+            should_sync(labels, labels, now=309.9, last_sync=10.0)
         )
         self.assertTrue(
-            should_sync(labels, labels, now=40.0, last_sync=10.0)
+            should_sync(labels, labels, now=310.0, last_sync=10.0)
         )
 
 

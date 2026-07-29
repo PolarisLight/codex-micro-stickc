@@ -84,7 +84,7 @@ ChatGPT 的 Codex Micro 协议会发送槽位颜色和效果，但不会发送�
 
 1. 以只读方式读取 Codex 的本地分配状态和任务数据库。
 2. 支持默认的 **Recent** 来源和显式 **Custom** 分配。
-3. 每秒检测一次换绑，每 30 秒刷新一次未变化的标题。
+3. 每秒检测一次换绑，每 5 分钟刷新一次未变化的标题。
 4. USB 可用时直接通过串口写入 StickC。
 5. USB 断开后回退到独立的加密 BLE GATT 特征。
 
@@ -93,7 +93,10 @@ ChatGPT 的 Codex Micro 协议会发送槽位颜色和效果，但不会发送�
 每次启动先显示 `AGENT N`。收到第一个有效标题包后，本次启动才切换到真实任务标题，因此设备不会展示上次启动残留的旧标题。
 
 > [!NOTE]
-> 当前支持 **Recent** 和 **Custom**；尚未同步 **Pinned** 和 **Priority**。macOS 已验证自动 BLE 回退；Windows 已验证 USB，同步服务的 Windows BLE 路径仍待测试。
+HID 连接后，标题服务的可连接广播会降到约 1 秒一次，减少原版
+StickC 小容量电池上的持续无线开销。当前支持 **Recent** 和
+**Custom**；尚未同步 **Pinned** 和 **Priority**。macOS 已验证自动 BLE
+回退；Windows 已验证 USB，同步服务的 Windows BLE 路径仍待测试。
 
 ## 按键
 
@@ -121,7 +124,10 @@ ChatGPT 的 Codex Micro 协议会发送槽位颜色和效果，但不会发送�
 
 ## 省电与电量
 
-为了避免破坏 Codex Micro 的活动连接，固件不会让 ESP32 或 BLE 控制器进入轻睡眠或深睡眠，而是在显示层省电：
+为了避免破坏 Codex Micro 的活动连接，固件不会让 ESP32 或 BLE
+控制器进入轻睡眠或深睡眠。屏幕关闭后会让 IMU 进入硬件休眠，将 CPU
+从 240 MHz 降到 80 MHz，并降低主循环轮询频率；按键唤醒时恢复完整性能，
+BLE HID 全程保持连接：
 
 | 电源 | 屏幕行为 |
 | --- | --- |

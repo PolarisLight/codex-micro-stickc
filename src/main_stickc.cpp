@@ -5,9 +5,12 @@
 #include <ArduinoJson.h>
 #include <M5Unified.h>
 #include <Preferences.h>
+#include <esp32-hal-cpu.h>
 
 #include "BatteryEstimator.h"
 #include "CodexMicroBle.h"
+#include "PowerModePolicy.h"
+#include "TitlePersistencePolicy.h"
 #include "TitleUiMode.h"
 
 RTC_DATA_ATTR uint32_t recoveryBootMagic = 0;
@@ -43,6 +46,7 @@ CodexMicroBle codex;
 CodexMicroState state;
 Preferences preferences;
 String agentLabels[6];
+String persistedLabels[6];
 bool labelAssigned[6] = {};
 bool titleSyncActive = false;
 Page page = Page::Tasks;
@@ -75,6 +79,7 @@ int batteryVoltageMv = 0;
 bool batteryCharging = false;
 bool batteryExternalPower = false;
 int batteryCurrentMa = 0;
+bool imuSleeping = false;
 
 uint16_t rgb888To565(uint32_t color, float brightness = 1.0f) {
   const uint8_t red = static_cast<uint8_t>(((color >> 16) & 0xFF) * brightness);
@@ -281,12 +286,31 @@ uint8_t activeBrightness() {
 
 void setScreenPower(ScreenPower mode) {
   if (mode == screenPower) return;
+  const bool wasOff = screenPower == ScreenPower::Off;
   screenPower = mode;
   if (mode == ScreenPower::Off) {
     M5.Display.setBrightness(0);
     M5.Display.sleep();
-    Serial.println("SCREEN off");
+    if (M5.Imu.isEnabled()) {
+      imuSleeping = M5.Imu.sleep();
+    }
+    const PowerModePolicy policy = powerModePolicy(true);
+    const bool frequencyChanged = setCpuFrequencyMhz(policy.cpuMhz);
+    Serial.printf("SCREEN off cpu_mhz=%u imu_sleep=%d freq_ok=%d\n",
+                  getCpuFrequencyMhz(), imuSleeping, frequencyChanged);
     return;
+  }
+  if (wasOff) {
+    const PowerModePolicy policy = powerModePolicy(false);
+    const bool frequencyChanged = setCpuFrequencyMhz(policy.cpuMhz);
+    if (imuSleeping) {
+      M5.Imu.begin(&M5.In_I2C, M5.getBoard());
+      imuSleeping = false;
+      lastImuMs = 0;
+      gyroTurnDegrees = 0.0f;
+    }
+    Serial.printf("SCREEN wake cpu_mhz=%u freq_ok=%d\n",
+                  getCpuFrequencyMhz(), frequencyChanged);
   }
   M5.Display.wakeup();
   M5.Display.setBrightness(mode == ScreenPower::Dim
@@ -363,8 +387,9 @@ void loadLabels() {
   preferences.begin("codexpad", false);
   for (int i = 0; i < 6; ++i) {
     const String key = String("label") + i;
-    agentLabels[i] = preferences.getString(key.c_str(), "");
-    labelAssigned[i] = !agentLabels[i].isEmpty();
+    persistedLabels[i] = preferences.getString(key.c_str(), "");
+    agentLabels[i] = persistedLabels[i];
+    labelAssigned[i] = !persistedLabels[i].isEmpty();
     if (!labelAssigned[i]) agentLabels[i] = String("Agent ") + (i + 1);
   }
 }
@@ -373,11 +398,14 @@ void applyLabels(const std::array<String, 6>& labels) {
   titleSyncActive = nextTitleUiActive(titleSyncActive, true);
   for (int i = 0; i < 6; ++i) {
     const String next = labels[i];
+    if (titleNeedsPersistence(persistedLabels[i].c_str(), next.c_str())) {
+      const String key = String("label") + i;
+      preferences.putString(key.c_str(), next);
+      persistedLabels[i] = next;
+    }
     labelAssigned[i] = !next.isEmpty();
     agentLabels[i] =
         labelAssigned[i] ? next : String("Agent ") + (i + 1);
-    const String key = String("label") + i;
-    preferences.putString(key.c_str(), next);
   }
   drawScreen();
 }
@@ -684,6 +712,5 @@ void loop() {
   }
   updateBattery();
   updateScreenPower();
-  delay(8);
+  delay(powerModePolicy(screenPower == ScreenPower::Off).loopDelayMs);
 }
-

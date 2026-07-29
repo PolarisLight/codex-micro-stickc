@@ -6,6 +6,7 @@
 #include <NimBLEDevice.h>
 #include <esp_system.h>
 
+#include "BleAdvertisingPolicy.h"
 #include "BleConnectionState.h"
 
 namespace {
@@ -52,7 +53,6 @@ class CodexMicroBle::ServerCallbacks final : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* server, NimBLEConnInfo& info) override {
     owner_.updateConnectionInfo(info);
     owner_.onConnected(true);
-    NimBLEDevice::startAdvertising();
   }
 
   void onConnParamsUpdate(NimBLEConnInfo& info) override {
@@ -63,7 +63,6 @@ class CodexMicroBle::ServerCallbacks final : public NimBLEServerCallbacks {
     Serial.printf("BLE disconnect reason=%d handle=%u uptime_ms=%lu\n", reason,
                   info.getConnHandle(), static_cast<unsigned long>(millis()));
     owner_.onConnected(false, reason);
-    NimBLEDevice::startAdvertising();
   }
 
   void onAuthenticationComplete(NimBLEConnInfo& info) override {
@@ -149,13 +148,13 @@ void CodexMicroBle::begin() {
   server->start();
   hid_->setBatteryLevel(batteryPercentage_, false);
 
-  NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
-  advertising->setAppearance(GENERIC_HID);
-  advertising->setName(kDeviceName);
-  advertising->addServiceUUID(hid_->getHidService()->getUUID());
-  advertising->addServiceUUID(kTitleServiceUuid);
-  advertising->enableScanResponse(true);
-  advertising->start();
+  advertising_ = NimBLEDevice::getAdvertising();
+  advertising_->setAppearance(GENERIC_HID);
+  advertising_->setName(kDeviceName);
+  advertising_->addServiceUUID(hid_->getHidService()->getUUID());
+  advertising_->addServiceUUID(kTitleServiceUuid);
+  advertising_->enableScanResponse(true);
+  applyAdvertisingPolicy(0);
 
   Serial.printf(
       "BLE vendor HID ready VID=%04X PID=%04X usage=FF00 report=%u\n",
@@ -262,8 +261,21 @@ void CodexMicroBle::onConnected(bool connected, int reason) {
     rpcBuffer_.clear();
     clearTxQueue();
   }
+  applyAdvertisingPolicy(connectionCount);
   Serial.printf("BLE link %s count=%u\n",
                 connected ? "connected" : "disconnected", connectionCount);
+}
+
+void CodexMicroBle::applyAdvertisingPolicy(uint8_t connectionCount) {
+  if (advertising_ == nullptr) {
+    return;
+  }
+  const BleAdvertisingPolicy policy = advertisingPolicy(connectionCount);
+  advertising_->stop();
+  advertising_->setAdvertisingInterval(policy.intervalUnits);
+  advertising_->start();
+  Serial.printf("BLE advertising interval_ms=%u connections=%u\n",
+                policy.intervalMs, connectionCount);
 }
 
 void CodexMicroBle::updateConnectionInfo(NimBLEConnInfo& info) {
@@ -535,7 +547,6 @@ void CodexMicroBle::updateLightingSide(LightingSide& side, JsonObjectConst value
   side.effect = value["e"] | side.effect;
   side.speed = value["s"] | side.speed;
 }
-
 
 
 

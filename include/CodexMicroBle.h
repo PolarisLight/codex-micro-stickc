@@ -60,6 +60,7 @@ class CodexMicroBle {
   void onOutput(const uint8_t* data, size_t length);
   void onTitleWrite(NimBLECharacteristic* characteristic,
                     const uint8_t* data, size_t length);
+  void applyAdvertisingPolicy(uint8_t connectionCount);
   void updateConnectionInfo(NimBLEConnInfo& info);
   void handleRpc(const JsonDocument& request);
   void sendResult(JsonVariantConst id, JsonVariantConst result);
@@ -75,6 +76,7 @@ class CodexMicroBle {
   NimBLECharacteristic* input_ = nullptr;
   NimBLECharacteristic* output_ = nullptr;
   NimBLECharacteristic* titleSync_ = nullptr;
+  NimBLEAdvertising* advertising_ = nullptr;
   SemaphoreHandle_t stateMutex_ = nullptr;
   QueueHandle_t txQueue_ = nullptr;
   TaskHandle_t txTask_ = nullptr;
